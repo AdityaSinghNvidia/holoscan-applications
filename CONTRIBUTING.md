@@ -123,16 +123,19 @@ instead of opening a public issue or pull request.
 
 Use **Actions → Squash merge with bot assistance → Run workflow** on `main`,
 enter the PR number, and run it when the PR is approved and its checks pass.
-This performs the squash merge using GitHub's default message, replacing only
-bot `Co-authored-by:` prefixes with `Assisted-by:`. Human co-authors, sign-offs,
-and the rest of the message stay unchanged. It does not modify the standard
-**Squash and merge** button.
+This performs the squash merge using GitHub's default message, replacing bot
+`Co-authored-by:` prefixes with `Assisted-by:` in the final trailer block.
+Human co-authors, sign-offs, and earlier message text (including quoted examples)
+stay unchanged. It does not modify the standard **Squash and merge** button.
 
 Detection recognizes `[bot]` identities, GitHub noreply accounts whose account
 type is `Bot`, and the AI addresses `noreply@anthropic.com` and
-`noreply@openai.com`. Other identities are preserved; names alone are not used
-to guess whether someone is a bot. Merge queues are not supported because they
-do not preserve a custom merge message.
+`noreply@openai.com`. Noreply addresses containing a numeric account ID are
+looked up by that stable ID, so renamed accounts still resolve correctly;
+legacy addresses without an ID are looked up by username. Lookup failures stop
+the merge. Other identities are preserved; names alone are not used to guess
+whether someone is a bot. Merge queues are not supported because they do not
+preserve a custom merge message.
 
 One-time setup: install a dedicated GitHub App on this repository with
 **Contents: write** and **Pull requests: read**. Also grant **Workflows: write**

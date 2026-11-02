@@ -45,7 +45,22 @@ def api(endpoint, *, method="GET", payload=None):
 
 
 def clean_message(message):
-    """Replace only co-author keys for identified bots; preserve all other text."""
+    """Replace bot co-author keys in the final trailer paragraph."""
+    lines = message.splitlines(keepends=True)
+    end = len(lines)
+    while end and not lines[end - 1].strip():
+        end -= 1
+    start = end
+    while start and lines[start - 1].strip():
+        start -= 1
+    trailers = lines[start:end]
+    # A trailer key starts at column zero; indented lines continue its value.
+    if (
+        not trailers
+        or not re.match(r"[^\s:]+:", trailers[0])
+        or any(not re.match(r"(?:[^\s:]+:|[ \t])", line) for line in trailers[1:])
+    ):
+        return message
 
     @cache
     def is_bot(identity):
@@ -57,20 +72,27 @@ def clean_message(message):
         if email[1].lower() in AI_EMAILS:
             return True
         account = re.fullmatch(
-            r"(?:\d+\+)?([a-z0-9][a-z0-9-]*)@users\.noreply\.github\.com",
+            r"(?:(\d+)\+)?([a-z0-9][a-z0-9-]*)@users\.noreply\.github\.com",
             email[1],
             re.IGNORECASE,
         )
-        return bool(account and api(f"users/{account[1]}")["type"] == "Bot")
+        if not account:
+            return False
+        endpoint = f"user/{account[1]}" if account[1] else f"users/{account[2]}"
+        return api(endpoint)["type"] == "Bot"
 
     def replace(match):
-        if is_bot(match[2]):
-            return f"{match[1]}Assisted-by:{match[2]}"
+        if is_bot(match[1]):
+            return f"Assisted-by:{match[1]}"
         return match[0]
 
-    return re.sub(
-        r"^([ \t]*)Co-authored-by:([^\r\n]*)", replace, message, flags=re.IGNORECASE | re.MULTILINE
+    cleaned = re.sub(
+        r"^Co-authored-by:([^\r\n]*)",
+        replace,
+        "".join(trailers),
+        flags=re.IGNORECASE | re.MULTILINE,
     )
+    return "".join(lines[:start]) + cleaned + "".join(lines[end:])
 
 
 def run(repository, number, *, merge=False):
